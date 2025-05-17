@@ -4,7 +4,7 @@ if (!isset($_SESSION['username']) || $_SESSION['role'] != 'nurse') {
     header("Location: ../../auth/login.php");
     exit();
 }
-include('../../includes/admin_header.php');
+include('../../includes/nurse_header.php');
 include('../../includes/nurse_sidebar.php');
 include('../../config/db.php');
 ?>

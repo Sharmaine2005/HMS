@@ -16,8 +16,18 @@ $cashier_name = $_SESSION['username'];
 <html>
 <head>
     <title>Cashier Dashboard</title>
-    <link rel="stylesheet" type="text/css" href="../../css/style.css">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color:rgb(255, 255, 255);
+        }
+
+        .content {
+            padding: 40px;
+        }
+    </style>
 </head>
+
 <body>
 
 <div class="content">

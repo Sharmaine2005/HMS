@@ -37,57 +37,151 @@ include('../../includes/admin_sidebar.php');
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <title>Pharmacist Management</title>
-    <link rel="stylesheet" href="../../css/style.css">
-    <style>
-        .content {
-            padding: 20px;
-        }
-        .table-container {
-            overflow-x: auto;
-        }
-        table {
-            width: 100%;
-            border-collapse: collapse;
-        }
-        table th, table td {
-            padding: 12px;
-            border: 1px solid #ddd;
-        }
-        table th {
-            background-color: #f4f4f4;
-        }
-        tr:hover {
-            background-color: #f9f9f9;
-        }
-        .btn {
-            padding: 5px 10px;
-            background-color: #007bff;
-            color: white;
-            border: none;
+<meta charset="UTF-8" />
+<title>Pharmacists Management</title>
+<link rel="stylesheet" href="../../css/style.css" />
+<style>
+    body {
+        font-family: Arial, sans-serif;
+        background-color: #ffffff;
+    }
+
+    .content {
+        padding: 40px;
+    }
+
+    table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 20px;
+    }
+
+    th, td {
+        padding: 10px;
+        text-align: center;
+        border: 1px solid #ddd;
+    }
+
+    th {
+        background-color: #f8f9fa;
+    }
+
+    form input, form button {
+        padding: 5px 10px;
+        margin-top: 5px;
+    }
+
+    button.view-btn {
+        background-color: #6f42c1;
+        color: white;
+        border: none;
+        border-radius: 6px;
+        padding: 8px 16px;
+        cursor: pointer;
+    }
+
+    button.view-btn:hover {
+        background-color: #512da8;
+    }
+
+    /* Modal styles (based on your patient details page) */
+    .modal {
+        position: fixed;
+        z-index: 999;
+        left: 0; top: 0;
+        width: 100%; height: 100%;
+        overflow: auto;
+        background-color: rgba(0,0,0,0.5);
+        display: none;
+        justify-content: center;
+        align-items: center;
+    }
+
+    .modal-content {
+        border: 2px solid purple;
+        border-radius: 12px;
+        padding: 40px;
+        background-color: #fff;
+        max-width: 500px;
+        width: 90%;
+        text-align: center;
+        box-shadow: 0 0 12px rgba(0,0,0,0.05);
+        position: relative;
+    }
+
+    .close {
+        position: absolute;
+        top: 15px;
+        right: 20px;
+        font-size: 28px;
+        font-weight: bold;
+        color: #888;
+        cursor: pointer;
+    }
+
+    .close:hover {
+        color: #000;
+    }
+
+    .profile-img {
+        width: 100px;
+        height: 100px;
+        margin: 0 auto 30px;
+        border-radius: 50%;
+        background-color: #f0f0f0;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+    }
+
+    .profile-img img {
+        width: 60px;
+        height: 60px;
+    }
+
+    .info-row {
+        display: flex;
+        justify-content: space-between;
+        margin: 12px 0;
+        font-size: 16px;
+        color: #555;
+    }
+
+    .info-row strong {
+        font-weight: 600;
+        color: #444;
+    }
+
+    .back-link {
+        display: inline-block;
+        margin-top: 30px;
+        text-decoration: none;
+        color: #fff;
+        background-color: #6f42c1;
+        padding: 10px 20px;
+        border-radius: 6px;
+        font-size: 14px;
+    }
+
+    .back-link:hover {
+        background-color: #512da8;
+    }
+        .edit-link {
+            color: #007bff;
             cursor: pointer;
-            border-radius: 4px;
+            text-decoration: underline;
         }
-        .sbtn {
-            padding: 5px 10px;
-            background-color: #007bff;
-            margin-top: 20px;
-            color: white;
-            border: none;
+        .edit-link:hover {
+            text-decoration: none;
+        }
+        .delete-link {
+            color: #dc3545;
+            text-decoration: underline;
             cursor: pointer;
-            border-radius: 4px;
         }
-        .btn-danger {
-            background-color: #dc3545;
+        .delete-link:hover {
+            text-decoration: none;
         }
-        .btn:hover {
-            background-color: #0056b3;
-        }
-        .btn-danger:hover {
-            background-color: #c82333;
-        }
-        
         .form-group { /*Edit pharm*/
         margin-bottom: 15px;
         display: flex;
@@ -126,7 +220,7 @@ include('../../includes/admin_sidebar.php');
             cursor: pointer;
             font-size: 20px;
         }
-    </style>
+  </style>
 </head>
 <body>
 
@@ -153,13 +247,14 @@ include('../../includes/admin_sidebar.php');
                         <td><?= htmlspecialchars($row['Email']) ?></td>
                         <td><?= htmlspecialchars($row['ContactNumber']) ?></td>
                         <td>
-                            <button class="btn" onclick="openModal(
+                            <span class="edit-link" onclick="openModal(
                                 <?= $row['PharmacistID'] ?>,
                                 '<?= htmlspecialchars($row['Name'], ENT_QUOTES) ?>',
                                 '<?= htmlspecialchars($row['Email'], ENT_QUOTES) ?>',
                                 '<?= htmlspecialchars($row['ContactNumber'], ENT_QUOTES) ?>'
-                            )">Edit</button>
-                            <a href="?delete=<?= $row['PharmacistID'] ?>" class="btn btn-danger" onclick="return confirm('Are you sure?')">Delete</a>
+                            )">Edit</span>
+                            |
+                            <a href="?delete=<?= $row['PharmacistID'] ?>" class="delete-link" onclick="return confirm('Are you sure?')">Delete</a>
                         </td>
                     </tr>
                 <?php endwhile; ?>

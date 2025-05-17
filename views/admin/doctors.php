@@ -5,26 +5,12 @@ if (!isset($_SESSION['username']) || $_SESSION['role'] != 'admin') {
     exit();
 }
 
+include('../../includes/admin_header.php');
+include('../../includes/admin_sidebar.php');
 include('../../config/db.php');
 
 if ($conn->connect_error) {
     die("Connection failed: " . $conn->connect_error);
-}
-
-// Handle update (edit doctor details)
-if (isset($_POST['update_doctor'])) {
-    $doctor_id = $_POST['doctor_id'];
-    $availability = $_POST['availability'];
-    $contact = $_POST['contact'];
-    $doctor_type = $_POST['doctor_type'];
-    $department_id = $_POST['department_id'];
-    $doctor_fee = $_POST['doctor_fee'];
-
-    $stmt = $conn->prepare("UPDATE doctor SET Availability=?, ContactNumber=?, DoctorType=?, DepartmentID=?, DoctorFee=? WHERE DoctorID=?");
-    $stmt->bind_param("sssisi", $availability, $contact, $doctor_type, $department_id, $doctor_fee, $doctor_id);
-    $stmt->execute();
-    header("Location: doctors.php");
-    exit();
 }
 
 // Handle delete doctor and user
@@ -44,111 +30,9 @@ if (isset($_GET['delete'])) {
 $result = $conn->query("SELECT d.DoctorID, u.username AS DoctorName, u.email AS Email, d.Availability, d.ContactNumber, d.DoctorType, d.DepartmentID, d.DoctorFee 
                         FROM doctor d 
                         JOIN users u ON d.UserID = u.UserID");
-include('../../includes/admin_header.php');
-include('../../includes/admin_sidebar.php');
+
 ?>
 
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <title>Doctor Management</title>
-    <link rel="stylesheet" href="../../css/style.css">
-    <style>
-        .edit-modal {
-            display: none;
-            position: fixed;
-            top: 0; left: 0;
-            width: 100%; height: 100%;
-            background: rgba(0,0,0,0.6);
-            justify-content: center;
-            align-items: center;
-            z-index: 9999;
-        }
-        .edit-modal-content {
-            background: white;
-            padding: 30px;
-            border-radius: 10px;
-            width: 800px;
-            max-width: 90%;
-            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
-            text-align: center;
-        }
-        .modal-close {
-            position: absolute;
-            right: 24.1%;
-            top: 3%;
-            padding: 10px;
-            font-size: 30px;
-            color: #fff;
-            cursor: pointer;
-        }
-        .modal-close:hover {
-            color: #f44336;
-        }
-        h3 {
-            margin-bottom: 30px;
-            font-size: 28px;
-            color: #333;
-            font-weight: 600;
-        }
-        .form-group {
-            margin-bottom: 15px;
-            text-align: left;
-        }
-        .form-group label {
-            font-weight: bold;
-        }
-        .form-group input, .form-group select {
-            width: 100%;
-            padding: 12px;
-            margin-top: 8px;
-            border-radius: 5px;
-            border: 1px solid #ddd;
-            font-size: 16px;
-        }
-        .save-btn {
-            width: 100%;
-            padding: 14px;
-            background-color: #4CAF50;
-            color: white;
-            border: none;
-            border-radius: 5px;
-            font-size: 18px;
-            cursor: pointer;
-        }
-        .save-btn:hover {
-            background-color: #45a049;
-        }
-        .content {
-            padding: 20px;
-        }
-        table {
-            width: 100%;
-            margin-top: 20px;
-            border-collapse: collapse;
-        }
-        table, th, td {
-            border: 1px solid #ddd;
-        }
-        th, td {
-            padding: 12px;
-            text-align: left;
-        }
-        th {
-            background-color: #f2f2f2;
-        }
-    </style>
-    <script>
-        function showEditForm(id) {
-            document.getElementById('edit-modal-' + id).style.display = 'flex';
-        }
-        function closeModal(id) {
-            document.getElementById('edit-modal-' + id).style.display = 'none';
-        }
-    </script>
-</head>
-<body>
 <div class="content">
     <h2>Doctor Management</h2>
     <table>
@@ -175,54 +59,10 @@ include('../../includes/admin_sidebar.php');
                     <td><?= htmlspecialchars($row['DepartmentID']) ?></td>
                     <td><?= htmlspecialchars($row['DoctorFee']) ?></td>
                     <td>
-                        <button onclick="showEditForm(<?= $row['DoctorID'] ?>)">Edit</button> |
-                        <a href="?delete=<?= $row['DoctorID'] ?>" onclick="return confirm('Are you sure?')">Delete</a>
-                    </td>
-                </tr>
-                <tr id="edit-modal-<?= $row['DoctorID'] ?>" class="edit-modal">
-                    <td colspan="9">
-                        <div class="edit-modal-content">
-                            <span class="modal-close" onclick="closeModal(<?= $row['DoctorID'] ?>)">×</span>
-                            <h3>Edit Doctor Details</h3>
-                            <form method="post" action="doctors.php">
-                                <input type="hidden" name="doctor_id" value="<?= $row['DoctorID'] ?>">
-
-                                <div class="form-group">
-                                    <label>Availability</label>
-                                    <input type="text" name="availability" value="<?= htmlspecialchars($row['Availability']) ?>" required>
-                                </div>
-                                <div class="form-group">
-                                    <label>Contact Number</label>
-                                    <input type="text" name="contact" value="<?= htmlspecialchars($row['ContactNumber']) ?>" required>
-                                </div>
-                                <div class="form-group">
-                                    <label>Doctor Type</label>
-                                    <input type="text" name="doctor_type" value="<?= htmlspecialchars($row['DoctorType']) ?>" required>
-                                </div>
-                                <div class="form-group">
-                                    <label>Department</label>
-                                    <select name="department_id" required>
-                                        <?php
-                                        $dept_result = $conn->query("SELECT DepartmentID, DepartmentName FROM department");
-                                        while ($dept = $dept_result->fetch_assoc()):
-                                        ?>
-                                            <option value="<?= $dept['DepartmentID'] ?>" <?= $row['DepartmentID'] == $dept['DepartmentID'] ? 'selected' : '' ?>>
-                                                <?= $dept['DepartmentName'] ?>
-                                            </option>
-                                        <?php endwhile; ?>
-                                    </select>
-                                </div>
-                                <div class="form-group">
-                                    <label>Doctor Fee</label>
-                                    <input type="number" name="doctor_fee" step="0.01" value="<?= htmlspecialchars($row['DoctorFee']) ?>" required>
-                                </div>
-                                <div class="form-group">
-                                    <label>Email</label>
-                                    <input type="email" name="email" value="<?= htmlspecialchars($row['Email']) ?>" disabled>
-                                </div>
-                                <button type="submit" name="update_doctor" class="save-btn">Save Changes</button>
-                            </form>
-                        </div>
+                        <a href="edit_doctor.php?doctor_id=<?= $row['DoctorID'] ?>">Edit</a> |
+                         <a href="employees.php?delete=<?= $user['DoctorID'] ?>" 
+                            onclick="return confirm('Are you sure?');" 
+                            class="delete-link">Delete</a>
                     </td>
                 </tr>
             <?php endwhile; ?>
@@ -231,5 +71,144 @@ include('../../includes/admin_sidebar.php');
         <?php endif; ?>
     </table>
 </div>
-</body>
-</html>
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Doctor Management</title>
+<link rel="stylesheet" href="../../css/style.css" />
+<style>
+    body {
+        font-family: Arial, sans-serif;
+        background-color: #ffffff;
+    }
+
+    .content {
+        padding: 40px;
+    }
+
+    table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 20px;
+    }
+
+    th, td {
+        padding: 10px;
+        text-align: center;
+        border: 1px solid #ddd;
+    }
+
+    th {
+        background-color: #f8f9fa;
+    }
+
+    form input, form button {
+        padding: 5px 10px;
+        margin-top: 5px;
+    }
+
+    button.view-btn {
+        background-color: #6f42c1;
+        color: white;
+        border: none;
+        border-radius: 6px;
+        padding: 8px 16px;
+        cursor: pointer;
+    }
+
+    button.view-btn:hover {
+        background-color: #512da8;
+    }
+
+    /* Modal styles (based on your patient details page) */
+    .modal {
+        position: fixed;
+        z-index: 999;
+        left: 0; top: 0;
+        width: 100%; height: 100%;
+        overflow: auto;
+        background-color: rgba(0,0,0,0.5);
+        display: none;
+        justify-content: center;
+        align-items: center;
+    }
+
+    .modal-content {
+        border: 2px solid purple;
+        border-radius: 12px;
+        padding: 40px;
+        background-color: #fff;
+        max-width: 500px;
+        width: 90%;
+        text-align: center;
+        box-shadow: 0 0 12px rgba(0,0,0,0.05);
+        position: relative;
+    }
+
+    .close {
+        position: absolute;
+        top: 15px;
+        right: 20px;
+        font-size: 28px;
+        font-weight: bold;
+        color: #888;
+        cursor: pointer;
+    }
+
+    .close:hover {
+        color: #000;
+    }
+
+    .profile-img {
+        width: 100px;
+        height: 100px;
+        margin: 0 auto 30px;
+        border-radius: 50%;
+        background-color: #f0f0f0;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+    }
+
+    .profile-img img {
+        width: 60px;
+        height: 60px;
+    }
+
+    .info-row {
+        display: flex;
+        justify-content: space-between;
+        margin: 12px 0;
+        font-size: 16px;
+        color: #555;
+    }
+
+    .info-row strong {
+        font-weight: 600;
+        color: #444;
+    }
+
+    .back-link {
+        display: inline-block;
+        margin-top: 30px;
+        text-decoration: none;
+        color: #fff;
+        background-color: #6f42c1;
+        padding: 10px 20px;
+        border-radius: 6px;
+        font-size: 14px;
+    }
+
+    .back-link:hover {
+        background-color: #512da8;
+    }
+
+    .delete-link {
+            color: red;
+        }
+
+</style>
+</head>
+<body>

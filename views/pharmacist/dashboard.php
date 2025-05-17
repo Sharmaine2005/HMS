@@ -4,7 +4,7 @@ if (!isset($_SESSION['username']) || $_SESSION['role'] != 'pharmacist') {
     header("Location: ../../auth/login.php");
     exit();
 }
-include('../../includes/pharmacist_sidebar.php');
+include('../../config/db.php');
 ?>
 
 <!DOCTYPE html>
@@ -15,10 +15,23 @@ include('../../includes/pharmacist_sidebar.php');
 </head>
 <body>
 
+<?php
+include('../../includes/pharmacist_sidebar.php');
+include('../../includes/pharmacist_header.php');
+?>
+
 <div class="content">
     <h2>Welcome, Pharmacist!</h2>
     <p>This is your Pharmacist dashboard. Use the sidebar to navigate.</p>
 </div>
-    
+
 </body>
 </html>
+
+ <style>
+        body {
+            background-color: #ffffff;
+            font-family: Arial, sans-serif;
+        }
+
+    </style>

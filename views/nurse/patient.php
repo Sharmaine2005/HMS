@@ -1,5 +1,7 @@
 <?php
 session_start();
+include('../../includes/nurse_header.php');
+include('../../includes/nurse_sidebar.php');
 
 // Ensure the nurse is logged in
 if (!isset($_SESSION['username']) || $_SESSION['role'] != 'nurse') {
@@ -7,53 +9,39 @@ if (!isset($_SESSION['username']) || $_SESSION['role'] != 'nurse') {
     exit();
 }
 
-// Include headers and sidebar
-include('../../includes/admin_header.php');
-include('../../includes/nurse_sidebar.php');
 include('../../config/db.php');
 
-// Get the nurse ID from the session
-$nurseID = $_SESSION['NurseID'];  // This should hold the logged-in nurse's ID
+// Query to fetch all patients with patient type and nurse name
+$query = "SELECT p.*, 
+                 i.PatientID AS inpatient_id,
+                 o.PatientID AS outpatient_id,
+                 CASE 
+                    WHEN i.PatientID IS NOT NULL THEN 'Inpatient'
+                    WHEN o.PatientID IS NOT NULL THEN 'Outpatient'
+                    ELSE 'Unknown'
+                 END AS PatientType,
+                 n.Name AS NurseName
+          FROM patients p
+          LEFT JOIN inpatients i ON p.PatientID = i.PatientID
+          LEFT JOIN outpatients o ON p.PatientID = o.PatientID
+          LEFT JOIN nurse n ON p.AssignedNurseID = n.NurseID";
 
-// Fetch patients assigned to the current nurse (both inpatient and outpatient)
-$query = "SELECT patients.*, 
-                 IF(inpatients.PatientID IS NOT NULL, 'Inpatient', 
-                    IF(outpatients.PatientID IS NOT NULL, 'Outpatient', 'Unknown')) AS PatientType
-          FROM patients
-          LEFT JOIN inpatients ON patients.PatientID = inpatients.PatientID
-          LEFT JOIN outpatients ON patients.PatientID = outpatients.PatientID
-          WHERE patients.AssignedNurseID = ? OR patients.AssignedNurseID IS NULL";
+$result = $conn->query($query);
 
-$stmt = $conn->prepare($query);
-$stmt->bind_param("i", $nurseID);  // Bind nurse ID as an integer
-$stmt->execute();
-$result = $stmt->get_result();
-
-// Check if there are patients assigned to the nurse
 if ($result->num_rows > 0) {
-    $patients = $result->fetch_all(MYSQLI_ASSOC); // Fetch all results
+    $patients = $result->fetch_all(MYSQLI_ASSOC);
 } else {
-    echo "No patients found for this nurse.";
-    exit();
+    $patients = [];
 }
 
-// Fetch only patients assigned to the current nurse (for "My Patients" page)
-$query_my_patients = "SELECT * FROM patients 
-                      WHERE AssignedNurseID = ?";
-$stmt_my_patients = $conn->prepare($query_my_patients);
-$stmt_my_patients->bind_param("i", $nurseID);  // Bind nurse ID as an integer
-$stmt_my_patients->execute();
-$result_my_patients = $stmt_my_patients->get_result();
-$my_patients = $result_my_patients->fetch_all(MYSQLI_ASSOC); // Get only the current nurse's patients
-
+// Handle vital signs update
 if (isset($_POST['update_patient'])) {
-    // Update patient data (e.g., vitals)
     $patient_id = $_POST['patient_id'];
     $vital_signs = $_POST['vital_signs'];
     $stmt = $conn->prepare("UPDATE patients SET VitalSigns = ? WHERE PatientID = ?");
     $stmt->bind_param("si", $vital_signs, $patient_id);
     $stmt->execute();
-    header("Location: patient.php"); // Refresh the page
+    header("Location: patient.php");
     exit();
 }
 ?>
@@ -61,28 +49,17 @@ if (isset($_POST['update_patient'])) {
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta charset="UTF-8" />
     <title>Patient Management</title>
-    <link rel="stylesheet" type="text/css" href="../../css/style.css">
+    <link rel="stylesheet" href="../../css/style.css" />
     <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #ffffff;
+        }
+
         .content {
-            padding: 20px;
-        }
-
-        .button {
-            margin-right: 15px;
-            padding: 10px 20px;
-            text-decoration: none;
-            background-color: #007bff; /* Blue */
-            color: white;
-            border-radius: 5px;
-            font-size: 14px;
-            margin-bottom: 20px;
-        }
-
-        .button:hover {
-            background-color: #0056b3; /* Darker Blue */
+            padding: 40px;
         }
 
         table {
@@ -98,12 +75,107 @@ if (isset($_POST['update_patient'])) {
         }
 
         th {
-            background-color: #f8f9fa; /* Light Gray */
+            background-color: #f8f9fa;
         }
 
         form input, form button {
             padding: 5px 10px;
             margin-top: 5px;
+        }
+
+        button.view-btn {
+            background-color: #6f42c1;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            padding: 8px 16px;
+            cursor: pointer;
+        }
+
+        button.view-btn:hover {
+            background-color: #512da8;
+        }
+
+        .modal {
+            position: fixed;
+            z-index: 999;
+            left: 0; top: 0;
+            width: 100%; height: 100%;
+            overflow: auto;
+            background-color: rgba(0,0,0,0.5);
+            display: none;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .modal-content {
+            border: 2px solid purple;
+            border-radius: 12px;
+            padding: 40px;
+            background-color: #fff;
+            max-width: 500px;
+            width: 90%;
+            text-align: center;
+            box-shadow: 0 0 12px rgba(0,0,0,0.05);
+            position: relative;
+        }
+
+        .close {
+            position: absolute;
+            top: 15px;
+            right: 20px;
+            font-size: 28px;
+            font-weight: bold;
+            color: #888;
+            cursor: pointer;
+        }
+
+        .close:hover {
+            color: #000;
+        }
+
+        .profile-img {
+            width: 100px;
+            height: 100px;
+            margin: 0 auto 30px;
+            border-radius: 50%;
+            background-color: #f0f0f0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .profile-img img {
+            width: 60px;
+            height: 60px;
+        }
+
+        .info-row {
+            display: flex;
+            justify-content: space-between;
+            margin: 12px 0;
+            font-size: 16px;
+            color: #555;
+        }
+
+        .info-row strong {
+            font-weight: 600;
+            color: #444;
+        }
+
+        .back-link {
+            display: inline-block;
+            margin-top: 30px;
+            text-decoration: none;
+            color: #fff;
+            background-color: #6f42c1;
+            padding: 10px 20px;
+            border-radius: 6px;
+            font-size: 14px;
+        }
+
+        .back-link:hover {
+            background-color: #512da8;
         }
     </style>
 </head>
@@ -112,41 +184,98 @@ if (isset($_POST['update_patient'])) {
 <div class="content">
     <h2>Patient Management</h2>
 
-    <!-- Buttons for All Patients and My Patients -->
-    <div>
-        <a href="patient.php" class="button">All Patients</a>
-        <a href="my_patients.php" class="button">My Patients</a>
-    </div>
-
-    <!-- Patient List for the Nurse -->
-    <h3>All Patients (Inpatients and Outpatients)</h3>
     <table>
-        <tr>
-            <th>Patient ID</th>
-            <th>Name</th>
-            <th>Vital Signs</th>
-            <th>Patient Type</th>
-            <th>Action</th>
-        </tr>
-        <?php foreach ($patients as $row) { ?>
-        <tr>
-            <td><?= $row['PatientID'] ?></td>
-            <td><?= $row['Name'] ?></td>
-            <td>
-                <form method="POST">
-                    <input type="text" name="vital_signs" value="<?= isset($row['VitalSigns']) ? $row['VitalSigns'] : 'Not Available' ?>" required>
-                    <input type="hidden" name="patient_id" value="<?= $row['PatientID'] ?>">
-                    <button type="submit" name="update_patient">Update</button>
-                </form>
-            </td>
-            <td>
-                <?= isset($row['PatientType']) ? $row['PatientType'] : 'Unknown' ?>
-            </td>
-            <td><a href="view_patient.php?id=<?= $row['PatientID'] ?>">View Details</a></td>
-        </tr>
-        <?php } ?>
+        <thead>
+            <tr>
+                <th>Patient ID</th>
+                <th>Name</th>
+                <th>Vital Signs</th>
+                <th>Patient Type</th>
+                <th>Assigned Nurse</th>
+                <th>Action</th>
+            </tr>
+        </thead>
+        <tbody>
+            <?php if (count($patients) === 0): ?>
+                <tr><td colspan="6">No patients found.</td></tr>
+            <?php else: ?>
+                <?php foreach ($patients as $patient): ?>
+                    <tr>
+                        <td><?= htmlspecialchars($patient['PatientID']) ?></td>
+                        <td><?= htmlspecialchars($patient['Name']) ?></td>
+                        <td>
+                            <form method="POST" style="margin:0;">
+                                <input type="text" name="vital_signs" value="<?= htmlspecialchars($patient['VitalSigns'] ?? 'Not Recorded') ?>" required>
+                                <input type="hidden" name="patient_id" value="<?= htmlspecialchars($patient['PatientID']) ?>">
+                                <button type="submit" name="update_patient">Update</button>
+                            </form>
+                        </td>
+                        <td><?= htmlspecialchars($patient['PatientType']) ?></td>
+                        <td><?= htmlspecialchars($patient['NurseName'] ?? 'Unassigned') ?></td>
+                        <td>
+                            <button class="view-btn" 
+                                onclick="openModal(
+                                    '<?= htmlspecialchars($patient['PatientID']) ?>',
+                                    '<?= htmlspecialchars($patient['Name']) ?>',
+                                    '<?= htmlspecialchars($patient['Sex']) ?>',
+                                    '<?= htmlspecialchars($patient['VitalSigns'] ?? 'Not Recorded') ?>',
+                                    '<?= htmlspecialchars($patient['PatientType']) ?>',
+                                    '<?= htmlspecialchars($patient['NurseName'] ?? 'Unassigned') ?>'
+                                )">View Details</button>
+                        </td>
+                    </tr>
+                <?php endforeach; ?>
+            <?php endif; ?>
+        </tbody>
     </table>
 </div>
+
+<!-- Modal -->
+<div id="patientModal" class="modal">
+    <div class="modal-content">
+        <span class="close" onclick="closeModal()">&times;</span>
+
+        <div class="profile-img">
+            <img src="https://cdn-icons-png.flaticon.com/512/149/149071.png" alt="Profile Icon" />
+        </div>
+
+        <div class="info-row"><strong>Patient ID:</strong> <span id="modalPatientID"></span></div>
+        <div class="info-row"><strong>Name:</strong> <span id="modalName"></span></div>
+        <div class="info-row"><strong>Gender:</strong> <span id="modalGender"></span></div>
+        <div class="info-row"><strong>Vital Sign:</strong> <span id="modalVital"></span></div>
+        <div class="info-row"><strong>Patient Type:</strong> <span id="modalType"></span></div>
+        <div class="info-row"><strong>Assigned Nurse:</strong> <span id="modalNurse"></span></div>
+    </div>
+</div>
+
+<script>
+function openModal(id, name, sex, vital, type, nurse) {
+    document.getElementById('modalPatientID').textContent = id || 'N/A';
+    document.getElementById('modalName').textContent = name || 'N/A';
+
+    let genderStr = 'Other';
+    if (sex === 'M') genderStr = 'Male';
+    else if (sex === 'F') genderStr = 'Female';
+    document.getElementById('modalGender').textContent = genderStr;
+
+    document.getElementById('modalVital').textContent = vital || 'Not Recorded';
+    document.getElementById('modalType').textContent = type || 'Unknown';
+    document.getElementById('modalNurse').textContent = nurse || 'Unassigned';
+
+    document.getElementById('patientModal').style.display = 'flex';
+}
+
+function closeModal() {
+    document.getElementById('patientModal').style.display = 'none';
+}
+
+window.onclick = function(event) {
+    const modal = document.getElementById('patientModal');
+    if (event.target === modal) {
+        closeModal();
+    }
+};
+</script>
 
 </body>
 </html>

@@ -2,12 +2,39 @@
     <h2 class="sidebar-title">Doctor Dashboard</h2>
     <ul>
         <li><a href="/HMS-main/views/doctors/dashboard.php">Dashboard</a></li>
-        <li><a href="/HMS-main/views/doctors/doctorschedule.php">My Schedule</a></li>
-        <li><a href="/HMS-main/views/doctors/appointments.php">Appointments</a></li>
+        <li><a href="/HMS-main/views/doctors/appointments.php">Patient Confirmation</a></li>
+
+        <li>
+            <a href="javascript:void(0);" class="dropdown-btn">My Schedule</a>
+            <ul class="dropdown-content">
+                <li><a href="/HMS-main/views/doctors/doctorschedule.php">Appointment</a></li>
+                <li><a href="/HMS-main/views/doctors/inpatient.php">Inpatient</a></li>
+                <li><a href="/HMS-main/views/doctors/outpatient.php">Outpatient</a></li>
+                
+                <li><hr class="dropdown-divider"></li> <!-- Divider -->
+                <li><a href="/HMS-main/views/doctors/pastschedules.php">View Past Schedules</a></li>
+            </ul>
+        </li>
+
         <li><a href="/HMS-main/views/doctors/labprocedure.php">Laboratory Procedure</a></li>
         <li><a href="/HMS-main/auth/logout.php">Logout</a></li>
     </ul>
 </div>
+
+<script>
+    // Toggle dropdown on click
+    document.querySelectorAll('.dropdown-btn').forEach(btn => {
+        btn.addEventListener('click', function () {
+            this.classList.toggle('active');
+            const dropdown = this.nextElementSibling;
+            if (dropdown.style.display === "block") {
+                dropdown.style.display = "none";
+            } else {
+                dropdown.style.display = "block";
+            }
+        });
+    });
+</script>
 
 <style>
   body {
@@ -79,7 +106,7 @@
 }
 
 .sidebar .dropdown-content li a {
-  padding-left: 30px !important;
+  padding-left: 10px !important;
 }
 
 .dropdown-btn::after {
@@ -90,6 +117,13 @@
 .dropdown-btn.active::after {
     content: " ▲";
 }
-
+.dropdown-divider {
+    border: 0;
+    border-top: 1px solid #ffffff44;
+    margin: 8px 0;
+}
+.sidebar .sidebar-title {
+    color: white !important;
+}
 
 </style>

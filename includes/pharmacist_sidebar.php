@@ -2,34 +2,32 @@
     <h2>Pharmacist Dashboard</h2>
     <ul>
         <li><a href="/HMS-main/views/pharmacist/dashboard.php">Dashboard</a></li>
-        <li><a href="/HMS-main/views/pharmacist/doctor.php">Doctor</a></li>
-        <li><a href="/HMS-main/views/pharmacist/patient.php">Patient</a></li>
-        <li><a href="/HMS-main/views/pharmacist/patientmedication.php">Patient Meds</a></li>
-        <li><a href="/HMS-main/views/pharmacist/pharmacy.php">Pharmacy></li>
+        <li><a href="/HMS-main/views/pharmacist/patientmedication.php">Patient Medication</a></li>
+        <li><a href="/HMS-main/views/pharmacist/pharmacy.php">Pharmacy</a></li>
         <li><a href="/HMS-main/auth/logout.php">Logout</a></li>
     </ul>
 </div>
 
 <style>
-  body {
+body {
     margin: 0;
     font-family: Arial, sans-serif;
     background-color: #e0f7fa;
     color: #333;
     box-sizing: border-box;
-    padding-top: 60px; /* Ensure body content starts below the header */
+    padding-top: 60px;
 }
 
 .sidebar {
     position: fixed;
-    top: 60px; /* Push the sidebar below the header */
+    top: 60px;
     width: 175px;
-    height: calc(100vh - 60px); /* Subtract header height from full viewport height */
+    height: calc(100vh - 60px);
     background-color: #9c335a;
     padding: 20px;
     color: white;
-    z-index: 1; /* Lower z-index so it stays behind the header */
-    overflow-y: auto; /* To ensure the sidebar can scroll if content overflows */
+    z-index: 1;
+    overflow-y: auto;
 }
 
 .sidebar h2 {
@@ -61,7 +59,7 @@
 }
 
 .content {
-    margin-left: 220px; /* Ensure the content doesn't overlap with the sidebar */
+    margin-left: 220px;
     padding: 40px;
 }
 
@@ -80,7 +78,7 @@
 }
 
 .sidebar .dropdown-content li a {
-  padding-left: 30px !important;
+    padding-left: 30px !important;
 }
 
 .dropdown-btn::after {
@@ -91,6 +89,4 @@
 .dropdown-btn.active::after {
     content: " ▲";
 }
-
-
 </style>

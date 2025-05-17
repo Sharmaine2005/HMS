@@ -7,178 +7,261 @@ if (!isset($_SESSION['username']) || $_SESSION['role'] != 'admin') {
 
 include('../../config/db.php');
 
-// Billing Summary Report
-$billing = $conn->query("
-    SELECT p.PatientID, p.Name AS PatientName, p.DateOfBirth, p.Contact, p.Sex, p.Address, 
-           b.DoctorFee, b.MedicineCost, b.TotalAmount
-    FROM patientbilling b 
-    JOIN patients p ON b.PatientID = p.PatientID
-");
+if (isset($_GET['download']) && $_GET['download'] === 'pdf' && isset($_GET['billing_id'])) {
+    require_once __DIR__ . '/../../dompdf/vendor/fpdf186/fpdf.php';
 
-// Doctor List
-$reports = $conn->query("
-    SELECT doctor.*, dept.DepartmentName
-    FROM doctor
-    LEFT JOIN department dept ON doctor.DepartmentID = dept.DepartmentID
-");
+    $billing_id = intval($_GET['billing_id']);
 
-// Nurses List
-$nurses = $conn->query("SELECT * FROM nurse");
+    $sql = "
+        SELECT 
+            b.BillingID,
+            p.PatientID,
+            p.Name AS PatientName,
+            d.DoctorID,
+            d.DoctorName,
+            b.DoctorFee,
+            b.TotalAmount,
+            b.PaymentDate,
+            b.Receipt,
+            b.PaymentMethod,
+            b.CashierID,
+            u.full_name AS CashierName
+        FROM patientbilling b
+        LEFT JOIN patients p ON b.PatientID = p.PatientID
+        LEFT JOIN doctor d ON b.DoctorID = d.DoctorID
+        LEFT JOIN users u ON b.CashierID = u.UserID
+        WHERE b.BillingID = $billing_id
+        LIMIT 1
+    ";
+
+    $result = $conn->query($sql);
+    if (!$result || $result->num_rows == 0) {
+        die('Billing record not found.');
+    }
+
+    $row = $result->fetch_assoc();
+
+    $med_sql = "
+        SELECT m.MedicineName, pm.QuantityUsed, m.Price
+        FROM patientmedication pm
+        INNER JOIN pharmacy m ON pm.MedicineID = m.MedicineID
+        WHERE pm.PatientID = " . intval($row['PatientID']) . "
+    ";
+    $med_result = $conn->query($med_sql);
+
+    class PDF extends FPDF {
+        function Header() {
+            $this->SetFont('Arial','B',16);
+            $this->Cell(0,10,'Billing Report',0,1,'C');
+            $this->Ln(5);
+        }
+
+        function Footer() {
+            $this->SetY(-15);
+            $this->SetFont('Arial','I',8);
+            $this->Cell(0,10,'Page '.$this->PageNo(),0,0,'C');
+        }
+    }
+
+    $pdf = new PDF();
+    $pdf->AddPage();
+    $pdf->SetFont('Arial','',10);
+
+    $pdf->SetFont('Arial','B',11);
+    $pdf->Cell(100, 10, 'Receipt #: ' . $row['Receipt'], 0, 0);
+    $pdf->Cell(90, 10, 'Cashier: ' . $row['CashierName'], 0, 1);
+    $pdf->Ln(3);
+
+    $pdf->SetFont('Arial','B',10);
+    $pdf->SetFillColor(230,230,230);
+    $pdf->Cell(40, 8, 'Patient', 1, 0, 'C', true);
+    $pdf->Cell(40, 8, 'Doctor', 1, 0, 'C', true);
+    $pdf->Cell(30, 8, 'Doctor Fee', 1, 0, 'C', true);
+    $pdf->Cell(40, 8, 'Payment Method', 1, 0, 'C', true);
+    $pdf->Cell(40, 8, 'Payment Date', 1, 1, 'C', true);
+
+    $pdf->SetFont('Arial','',10);
+    $pdf->Cell(40, 8, $row['PatientName'], 1);
+    $pdf->Cell(40, 8, $row['DoctorName'], 1);
+    $pdf->Cell(30, 8, '$' . number_format($row['DoctorFee'], 2), 1);
+    $pdf->Cell(40, 8, $row['PaymentMethod'], 1);
+    $pdf->Cell(40, 8, $row['PaymentDate'], 1);
+    $pdf->Ln(12);
+
+    $pdf->SetFont('Arial','B',10);
+    $pdf->Cell(70, 8, 'Medicine Name', 1, 0, 'C', true);
+    $pdf->Cell(30, 8, 'Quantity Used', 1, 0, 'C', true);
+    $pdf->Cell(40, 8, 'Price/Unit', 1, 0, 'C', true);
+    $pdf->Cell(40, 8, 'Subtotal', 1, 1, 'C', true);
+
+    $pdf->SetFont('Arial','',10);
+    $medicineTotal = 0;
+
+    if ($med_result && $med_result->num_rows > 0) {
+        while ($med = $med_result->fetch_assoc()) {
+            $name = $med['MedicineName'];
+            $qty = $med['QuantityUsed'];
+            $price = $med['Price'];
+            $subtotal = $qty * $price;
+            $medicineTotal += $subtotal;
+
+            $pdf->Cell(70, 8, $name, 1);
+            $pdf->Cell(30, 8, $qty, 1);
+            $pdf->Cell(40, 8, '$' . number_format($price, 2), 1);
+            $pdf->Cell(40, 8, '$' . number_format($subtotal, 2), 1);
+            $pdf->Ln();
+        }
+    } else {
+        $pdf->Cell(180, 8, 'No medicine data found.', 1, 1);
+    }
+
+    $pdf->Ln(3);
+    $pdf->SetFont('Arial','B',10);
+    $pdf->Cell(100, 8, 'Total Medicine Cost: $' . number_format($medicineTotal, 2), 0, 1);
+    $pdf->Cell(100, 8, 'Overall Amount Paid: $' . number_format($row['TotalAmount'], 2), 0, 1);
+
+    $pdf->Output('D', 'Billing_Report_' . $row['BillingID'] . '_' . date('Ymd') . '.pdf');
+    exit();
+}
+
+// No output before here
 include('../../includes/admin_header.php');
 include('../../includes/admin_sidebar.php');
+
+$sql = "
+SELECT 
+    b.BillingID,
+    b.PatientID,
+    p.Name AS PatientName,
+    b.DoctorID,
+    d.DoctorName,
+    b.DoctorFee,
+    b.MedicineCost,
+    b.TotalAmount,
+    b.PaymentDate,
+    b.Receipt,
+    b.PaymentMethod,
+    b.CreatedAt,
+    b.CashierID,
+    u.full_name AS CashierName
+FROM patientbilling b
+LEFT JOIN patients p ON b.PatientID = p.PatientID
+LEFT JOIN doctor d ON b.DoctorID = d.DoctorID
+LEFT JOIN users u ON b.CashierID = u.UserID
+ORDER BY b.BillingID DESC
+";
+
+$result = $conn->query($sql);
+
 ?>
 
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>Reports</title>
-    <link rel="stylesheet" type="text/css" href="../../css/style.css">
+    <meta charset="UTF-8" />
+    <title>Billing Management & Reports</title>
+    <link rel="stylesheet" href="../../css/style.css" />
     <style>
+         body {
+            font-family: Arial, sans-serif;
+            background-color: #ffffff;
+        }
         .content {
             padding: 20px;
         }
-        h2, h3 {
-            margin-top: 30px;
-            margin-bottom: 15px;
+        h2 {
+            margin-bottom: 10px;
         }
         table {
             width: 100%;
+            margin-top: 20px;
             border-collapse: collapse;
-            margin-bottom: 40px;
         }
-        table th, table td {
+        table, th, td {
+            border: 1px solid #ddd;
+        }
+        th, td {
             padding: 12px;
-            border: 1px solid #ccc;
+            text-align: left;
+            vertical-align: top;
         }
-        table th {
-            background-color: #f4f4f4;
+        th {
+            background-color: #f2f2f2;
         }
-        tr:hover {
-            background-color: #f9f9f9;
-        }
-        .button {
-            background-color: #007bff;
+        .btn-download {
+            display: inline-block;          /* Make it inline-block so padding and width apply nicely */
+            padding: 6px 12px;
+            background-color: #4CAF50;
             color: white;
-            padding: 8px 16px;
             border: none;
-            margin-bottom: 15px;
             cursor: pointer;
             border-radius: 4px;
             text-decoration: none;
+            font-size: 14px;
+            white-space: nowrap;            /* Prevent the text from wrapping */
+            text-align: center;
+            vertical-align: middle;
+            line-height: normal;            /* Reset line height */
+            width: auto;                    /* Let button width adjust to content */
         }
-        .button:hover {
-            background-color: #0056b3;
+
+        td > .btn-download {
+            width: 100%;                   /* Make button fill the table cell width */
+            box-sizing: border-box;        /* Include padding in width */
         }
-        form {
-            margin-bottom: 10px;
+
+        .btn-download:hover {
+            background-color: #45a049;
         }
     </style>
 </head>
 <body>
 
 <div class="content">
-    <h2>Reports</h2>
-
-    <!-- Billing Summary -->
-    <h3>Billing Summary</h3>
-
-    <form method="post" action="export_billing_pdf.php">
-        <button type="submit" class="button">Export Billing to PDF</button>
-    </form>
+    <h2>Billing Management & Reports</h2>
 
     <table>
         <thead>
             <tr>
-                <th>Patient ID</th>
-                <th>Patient Name</th>
-                <th>Date of Birth</th>
-                <th>Contact</th>
-                <th>Sex</th>
-                <th>Address</th>
+                <th>BillingID</th>
+                <th>Patient</th>
+                <th>Doctor</th>
                 <th>Doctor Fee</th>
                 <th>Medicine Cost</th>
                 <th>Total Amount</th>
+                <th>Payment Date</th>
+                <th>Receipt</th>
+                <th>Payment Method</th>
+                <th>Created At</th>
+                <th>Cashier</th>
+                <th>Download PDF</th>
             </tr>
         </thead>
         <tbody>
-            <?php 
-            if ($billing->num_rows > 0) {
-                while ($row = $billing->fetch_assoc()) {
-                    echo "<tr>";
-                    echo "<td>" . htmlspecialchars($row['PatientID']) . "</td>";
-                    echo "<td>" . htmlspecialchars($row['PatientName']) . "</td>";
-                    echo "<td>" . htmlspecialchars($row['DateOfBirth']) . "</td>";
-                    echo "<td>" . htmlspecialchars($row['Contact']) . "</td>";
-                    echo "<td>" . htmlspecialchars($row['Sex']) . "</td>";
-                    echo "<td>" . htmlspecialchars($row['Address']) . "</td>";
-                    echo "<td>" . htmlspecialchars($row['DoctorFee']) . "</td>";
-                    echo "<td>" . htmlspecialchars($row['MedicineCost']) . "</td>";
-                    echo "<td>" . htmlspecialchars($row['TotalAmount']) . "</td>";
-                    echo "</tr>";
-                }
-            } else {
-                echo "<tr><td colspan='9'>No billing data available.</td></tr>";
-            }
-            ?>
+            <?php if ($result && $result->num_rows > 0): ?>
+                <?php while ($row = $result->fetch_assoc()): ?>
+                    <tr>
+                        <td><?= htmlspecialchars($row['BillingID']) ?></td>
+                        <td><?= htmlspecialchars($row['PatientName']) ?></td>
+                        <td><?= htmlspecialchars($row['DoctorName']) ?></td>
+                        <td><?= number_format($row['DoctorFee'], 2) ?></td>
+                        <td><?= nl2br(htmlspecialchars($row['MedicineCost'])) ?></td>
+                        <td><?= number_format($row['TotalAmount'], 2) ?></td>
+                        <td><?= htmlspecialchars($row['PaymentDate']) ?></td>
+                        <td><?= htmlspecialchars($row['Receipt']) ?></td>
+                        <td><?= htmlspecialchars($row['PaymentMethod']) ?></td>
+                        <td><?= htmlspecialchars($row['CreatedAt']) ?></td>
+                        <td><?= htmlspecialchars($row['CashierName']) ?></td>
+                        <td>
+                            <a href="?download=pdf&billing_id=<?= $row['BillingID'] ?>" target="_blank" class="btn-download">Download PDF</a>
+                        </td>
+                    </tr>
+                <?php endwhile; ?>
+            <?php else: ?>
+                <tr><td colspan="12" style="text-align:center;">No billing records found.</td></tr>
+            <?php endif; ?>
         </tbody>
     </table>
-
-    <!-- Doctors List -->
-    <h3>Doctors List</h3>
-    <table>
-        <thead>
-            <tr>
-                <th>ID</th>
-                <th>Name</th>
-                <th>Specialty</th>
-                <th>Department</th>
-            </tr>
-        </thead>
-        <tbody>
-            <?php 
-            if ($reports->num_rows > 0) {
-                while ($row = $reports->fetch_assoc()) {
-                    echo "<tr>";
-                    echo "<td>" . htmlspecialchars($row['DoctorID']) . "</td>";
-                    echo "<td>" . htmlspecialchars($row['DoctorName']) . "</td>";
-                    echo "<td>" . htmlspecialchars($row['DoctorType']) . "</td>";
-                    echo "<td>" . ($row['DepartmentName'] ?? 'Not Assigned') . "</td>";
-                    echo "</tr>";
-                }
-            } else {
-                echo "<tr><td colspan='4'>No doctors available.</td></tr>";
-            }
-            ?>
-        </tbody>
-    </table>
-
-    <!-- Nurses List -->
-    <h3>Nurses List</h3>
-    <table>
-        <thead>
-            <tr>
-                <th>ID</th>
-                <th>Nurse Name</th>
-                <th>Email</th>
-            </tr>
-        </thead>
-        <tbody>
-            <?php 
-            if ($nurses->num_rows > 0) {
-                while ($row = $nurses->fetch_assoc()) {
-                    echo "<tr>";
-                    echo "<td>" . htmlspecialchars($row['NurseID']) . "</td>";
-                    echo "<td>" . htmlspecialchars($row['Name']) . "</td>";
-                    echo "<td>" . htmlspecialchars($row['Email']) . "</td>";
-                    echo "</tr>";
-                }
-            } else {
-                echo "<tr><td colspan='3'>No nurses available.</td></tr>";
-            }
-            ?>
-        </tbody>
-    </table>
-
 </div>
 
 </body>

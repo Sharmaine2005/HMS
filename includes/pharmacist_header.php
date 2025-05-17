@@ -1,11 +1,26 @@
 <?php
-
-if (isset($_SESSION['PharmacistID'])) {
-    $pharmacistID = $_SESSION['PharmacistID'];
-} else {
-    $pharmacistID = "Unknown"; 
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
 }
+include('../../config/db.php');
 
+$pharmacistName = "Unknown";
+
+if (isset($_SESSION['role']) && $_SESSION['role'] === 'pharmacist' && isset($_SESSION['role_id'])) {
+    $pharmacistID = $_SESSION['role_id'];
+
+    $query = "SELECT Name FROM pharmacist WHERE PharmacistID = ?";
+    $stmt = mysqli_prepare($conn, $query);
+    if ($stmt) {
+        mysqli_stmt_bind_param($stmt, "i", $pharmacistID);
+        mysqli_stmt_execute($stmt);
+        mysqli_stmt_bind_result($stmt, $name);
+        if (mysqli_stmt_fetch($stmt)) {
+            $pharmacistName = $name;
+        }
+        mysqli_stmt_close($stmt);
+    }
+}
 ?>
 
 <style>
@@ -19,10 +34,9 @@ if (isset($_SESSION['PharmacistID'])) {
     color: white;
     width: 98%;
     height: 60px;
-    z-index: 10; /* Higher z-index to overlap the sidebar */
-    top: 0; /* Make sure the header is exactly at the top of the viewport */
+    z-index: 10;
+    top: 0;
 }
-
 
 .left-section,
 .right-section {
@@ -111,7 +125,6 @@ if (isset($_SESSION['PharmacistID'])) {
     cursor: pointer;
     font-size: 14px;
 }
-
 </style>
 
 <div class="header">
@@ -120,15 +133,10 @@ if (isset($_SESSION['PharmacistID'])) {
         <i class="fas fa-bars menu-icon"></i>
     </div>
 
-    <div class="search-section">
-        <input type="text" placeholder="Search...">
-        <i class="fas fa-search search-icon"></i>
-    </div>
-
     <div class="right-section">
         <img src="../../assets/user.png" alt="Avatar" class="avatar">
         <div class="user-dropdown">
-            <span>Pharmacist ID: <?php echo $pharmacistID; ?> <i class="fas fa-chevron-down"></i></span>
+            <span>Welcome Pharmacist <?php echo htmlspecialchars($pharmacistName); ?> <i class="fas fa-chevron-down"></i></span>
         </div>
     </div>
 </div>

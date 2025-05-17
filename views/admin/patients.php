@@ -26,6 +26,10 @@ include('../../includes/admin_sidebar.php');
     <title>View Patients</title>
     <link rel="stylesheet" type="text/css" href="../../css/style.css">
     <style>
+         body {
+            font-family: Arial, sans-serif;
+            background-color: #ffffff;
+        }
         .content {
             padding: 20px;
         }

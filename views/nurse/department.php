@@ -4,7 +4,7 @@ if (!isset($_SESSION['username']) || $_SESSION['role'] != 'nurse') {
     header("Location: ../../auth/login.php");
     exit();
 }
-include('../../includes/admin_header.php');
+include('../../includes/nurse_header.php');
 include('../../includes/nurse_sidebar.php');
 include('../../config/db.php');
 
@@ -72,7 +72,7 @@ $departments = $conn->query("SELECT * FROM department");
             <tr>
                 <th>Department ID</th>
                 <th>Department Name</th>
-                <th>Department Room</th>
+                <th>Department Building</th>
             </tr>
         </thead>
         <tbody>
@@ -80,7 +80,7 @@ $departments = $conn->query("SELECT * FROM department");
             <tr>
                 <td><?= $row['DepartmentID'] ?></td>
                 <td><?= $row['DepartmentName'] ?></td>
-                <td><?= $row['DepartmentRoom'] ?></td>
+                <td><?= $row['DepartmentBuilding'] ?></td>
             </tr>
             <?php } ?>
         </tbody>

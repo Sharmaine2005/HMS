@@ -5,226 +5,242 @@ if (!isset($_SESSION['username']) || $_SESSION['role'] != 'admin') {
     exit();
 }
 
-include('../../includes/admin_header.php');
-include('../../includes/admin_sidebar.php');
 include('../../config/db.php');
 
-// Check connection
 if ($conn->connect_error) {
     die("Connection failed: " . $conn->connect_error);
 }
 
-// Handle update
+// Update nurse
 if (isset($_POST['update_nurse'])) {
     $nurse_id = $_POST['nurse_id'];
     $availability = $_POST['availability'];
     $contact = $_POST['contact'];
-    $department_id = $_POST['department_id'];
 
-    $stmt = $conn->prepare("UPDATE nurse SET Availability=?, ContactNumber=?, DepartmentID=? WHERE NurseID=?");
-    $stmt->bind_param("ssii", $availability, $contact, $department_id, $nurse_id);
+    $stmt = $conn->prepare("UPDATE nurse SET Availability=?, ContactNumber=? WHERE NurseID=?");
+    $stmt->bind_param("ssi", $availability, $contact, $nurse_id);
     $stmt->execute();
     header("Location: nurses.php");
     exit();
 }
 
-// Handle delete
+// Delete nurse
 if (isset($_GET['delete'])) {
     $nurse_id = $_GET['delete'];
-    $conn->query("DELETE FROM nurse WHERE NurseID = $nurse_id");
+    $result = $conn->query("SELECT UserID FROM nurse WHERE NurseID = $nurse_id");
+    if ($row = $result->fetch_assoc()) {
+        $user_id = $row['UserID'];
+        $conn->query("DELETE FROM nurse WHERE NurseID = $nurse_id");
+        $conn->query("DELETE FROM users WHERE UserID = $user_id");
+    }
     header("Location: nurses.php");
     exit();
 }
 
-// Fetch nurses with department names
-$result = $conn->query("SELECT 
-        nurse.NurseID, 
-        nurse.Name AS NurseName, 
-        nurse.Email, 
-        nurse.Availability, 
-        nurse.ContactNumber, 
-        nurse.DepartmentID, 
-        department.DepartmentName
-    FROM nurse
-    LEFT JOIN department ON nurse.DepartmentID = department.DepartmentID
-");
+// Fetch nurses
+$result = $conn->query("SELECT n.NurseID, u.username AS NurseName, u.email AS Email, n.Availability, n.ContactNumber, n.DepartmentID
+                        FROM nurse n
+                        JOIN users u ON n.UserID = u.UserID");
 
-// Fetch departments
-$departments_result = $conn->query("SELECT DepartmentID, DepartmentName FROM department");
-$departments = [];
-while ($dept = $departments_result->fetch_assoc()) {
-    $departments[] = $dept;
-}
+include('../../includes/admin_header.php');
+include('../../includes/admin_sidebar.php');
 ?>
 
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <title>Nurse Management</title>
-    <link rel="stylesheet" href="../../css/style.css">
-    <style>
-        .content {
-            padding: 20px;
-        }
-        .table-container {
-            margin-bottom: 30px;
-            overflow-x: auto;
-        }
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            text-align: left;
-        }
-        table th, table td {
-            padding: 12px;
-            border: 1px solid #ddd;
-        }
-        table th {
-            background-color: #f4f4f4;
-        }
-        tr:hover {
-            background-color: #f9f9f9;
-        }
-        .btn {
-            padding: 5px 10px;
-            background-color: #007bff;
-            color: white;
-            border: none;
-            cursor: pointer;
-            border-radius: 4px;
-        }
-        .btn-danger {
-            background-color: #dc3545;
-        }
-        .btn:hover {
-            background-color: #0056b3;
-        }
-        .btn-danger:hover {
-            background-color: #c82333;
-        }
+<meta charset="UTF-8" />
+<title>Nurses Management</title>
+<link rel="stylesheet" href="../../css/style.css" />
+<style>
+    body {
+        font-family: Arial, sans-serif;
+        background-color: #ffffff;
+    }
 
-        /* Modal Styles */
-        .modal {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.7);
-            justify-content: center;
-            align-items: center;
-        }
-        .modal-content {
-            background: #fff;
-            padding: 20px;
-            border-radius: 8px;
-            width: 400px;
-            position: relative;
-        }
-        .modal-close {
-            position: absolute;
-            top: 10px;
-            right: 10px;
-            cursor: pointer;
-            font-size: 20px;
-        }
-    </style>
+    .content {
+        padding: 40px;
+    }
+
+    table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 20px;
+    }
+
+    th, td {
+        padding: 10px;
+        text-align: center;
+        border: 1px solid #ddd;
+    }
+
+    th {
+        background-color: #f8f9fa;
+    }
+
+    form input, form button {
+        padding: 5px 10px;
+        margin-top: 5px;
+    }
+
+    button.view-btn {
+        background-color: #6f42c1;
+        color: white;
+        border: none;
+        border-radius: 6px;
+        padding: 8px 16px;
+        cursor: pointer;
+    }
+
+    button.view-btn:hover {
+        background-color: #512da8;
+    }
+
+    /* Modal styles */
+    .modal {
+        position: fixed;
+        z-index: 9999;
+        left: 0; top: 0;
+        width: 100%; height: 100%;
+        background-color: rgba(0,0,0,0.5);
+        display: none; /* hidden by default */
+        justify-content: center;
+        align-items: center;
+    }
+
+    .modal-content {
+        background-color: #fff;
+        padding: 30px;
+        border-radius: 12px;
+        max-width: 500px;
+        width: 90%;
+        position: relative;
+        box-shadow: 0 0 15px rgba(0,0,0,0.3);
+        text-align: left;
+    }
+
+    .close {
+        position: absolute;
+        top: 12px;
+        right: 15px;
+        font-size: 28px;
+        font-weight: bold;
+        color: #888;
+        cursor: pointer;
+    }
+
+    .close:hover {
+        color: #000;
+    }
+
+    .edit-link {
+        color: #007bff;
+        cursor: pointer;
+        text-decoration: underline;
+    }
+
+    .edit-link:hover {
+        text-decoration: none;
+    }
+
+    .delete-link {
+        color: #dc3545;
+        text-decoration: underline;
+        cursor: pointer;
+    }
+
+    .delete-link:hover {
+        text-decoration: none;
+    }
+</style>
 </head>
 <body>
 <div class="content">
     <h2>Nurse Management</h2>
-
-    <div class="table-container">
-        <table>
-            <thead>
+    <table>
+        <tr>
+            <th>NurseID</th>
+            <th>NurseName</th>
+            <th>Email</th>
+            <th>Availability</th>
+            <th>ContactNumber</th>
+            <th>Department</th>
+            <th>Action</th>
+        </tr>
+        <?php if ($result->num_rows > 0): ?>
+            <?php while ($row = $result->fetch_assoc()): ?>
                 <tr>
-                    <th>NurseID</th>
-                    <th>Name</th>
-                    <th>Email</th>
-                    <th>Availability</th>
-                    <th>Contact Number</th>
-                    <th>Department</th>
-                    <th>Actions</th>
+                    <td><?= $row['NurseID'] ?></td>
+                    <td><?= htmlspecialchars($row['NurseName']) ?></td>
+                    <td><?= htmlspecialchars($row['Email']) ?></td>
+                    <td><?= htmlspecialchars($row['Availability']) ?></td>
+                    <td><?= htmlspecialchars($row['ContactNumber']) ?></td>
+                    <td><?= htmlspecialchars($row['DepartmentID']) ?></td>
+                    <td>
+                        <span class="edit-link" 
+                              onclick="showEditForm(
+                                <?= $row['NurseID'] ?>,
+                                '<?= addslashes(htmlspecialchars($row['Availability'])) ?>',
+                                '<?= addslashes(htmlspecialchars($row['ContactNumber'])) ?>',
+                                '<?= addslashes(htmlspecialchars($row['Email'])) ?>'
+                              )">Edit</span>
+                        |
+                        <a href="?delete=<?= $row['NurseID'] ?>" class="delete-link" onclick="return confirm('Are you sure?')">Delete</a>
+                    </td>
                 </tr>
-            </thead>
-            <tbody>
-                <?php if ($result->num_rows > 0): ?>
-                    <?php while ($row = $result->fetch_assoc()): ?>
-                        <tr>
-                            <td><?= $row['NurseID'] ?></td>
-                            <td><?= htmlspecialchars($row['NurseName']) ?></td>
-                            <td><?= htmlspecialchars($row['Email']) ?></td>
-                            <td><?= htmlspecialchars($row['Availability']) ?></td>
-                            <td><?= htmlspecialchars($row['ContactNumber']) ?></td>
-                            <td><?= htmlspecialchars($row['DepartmentName']) ?></td>
-                            <td>
-                                <button class="btn" onclick="openModal(<?= $row['NurseID'] ?>, '<?= htmlspecialchars($row['Availability'], ENT_QUOTES) ?>', '<?= htmlspecialchars($row['ContactNumber'], ENT_QUOTES) ?>', <?= $row['DepartmentID'] ?>)">Edit</button>
-                                <a href="?delete=<?= $row['NurseID'] ?>" class="btn btn-danger" onclick="return confirm('Are you sure?')">Delete</a>
-                            </td>
-                        </tr>
-                    <?php endwhile; ?>
-                <?php else: ?>
-                    <tr><td colspan="7">No nurse records found.</td></tr>
-                <?php endif; ?>
-            </tbody>
-        </table>
-    </div>
+            <?php endwhile; ?>
+        <?php else: ?>
+            <tr><td colspan="7">No nurse records found.</td></tr>
+        <?php endif; ?>
+    </table>
 </div>
 
-<!-- Modal -->
+<!-- Modal Overlay -->
 <div id="editModal" class="modal">
-    <div class="modal-content">
-        <span class="modal-close" onclick="closeModal()">×</span>
-        <h3>Edit Nurse Details</h3>
-        <form method="post" action="nurses.php">
-            <input type="hidden" name="nurse_id" id="modal_nurse_id">
-
-            <div class="form-group">
-                <label>Availability</label>
-                <input type="text" name="availability" id="modal_availability" required>
-            </div>
-            <div class="form-group">
-                <label>Contact Number</label>
-                <input type="text" name="contact" id="modal_contact" required>
-            </div>
-            <div class="form-group">
-                <label>Department</label>
-                <select name="department_id" id="modal_department_id" required></select>
-            </div>
-            <button type="submit" name="update_nurse" class="btn">Save Changes</button>
-        </form>
-    </div>
+  <div class="modal-content">
+    <span class="close" onclick="closeModal()">&times;</span>
+    <h3>Edit Nurse Details</h3>
+    <form id="editForm" method="post" action="nurses.php">
+      <input type="hidden" name="nurse_id" id="nurse_id" value="">
+      <div class="form-group">
+        <label>Availability</label>
+        <input type="text" name="availability" id="availability" required>
+      </div>
+      <div class="form-group">
+        <label>Contact Number</label>
+        <input type="text" name="contact" id="contact" required>
+      </div>
+      <div class="form-group">
+        <label>Email</label>
+        <input type="email" id="email" disabled>
+      </div>
+      <button type="submit" name="update_nurse" class="save-btn">Save Changes</button>
+    </form>
+  </div>
 </div>
 
 <script>
-    const departments = <?= json_encode($departments) ?>;
-
-    function openModal(id, availability, contact, departmentId) {
-        document.getElementById('modal_nurse_id').value = id;
-        document.getElementById('modal_availability').value = availability;
-        document.getElementById('modal_contact').value = contact;
-
-        const select = document.getElementById('modal_department_id');
-        select.innerHTML = '';
-        departments.forEach(dept => {
-            const option = document.createElement('option');
-            option.value = dept.DepartmentID;
-            option.textContent = dept.DepartmentName;
-            if (dept.DepartmentID == departmentId) {
-                option.selected = true;
-            }
-            select.appendChild(option);
-        });
-
-        document.getElementById('editModal').style.display = 'flex';
-    }
-
     function closeModal() {
         document.getElementById('editModal').style.display = 'none';
     }
-</script>
 
+    function showEditForm(nurseID, availability, contact, email) {
+        const modal = document.getElementById('editModal');
+        modal.style.display = 'flex';
+
+        document.getElementById('nurse_id').value = nurseID;
+        document.getElementById('availability').value = availability;
+        document.getElementById('contact').value = contact;
+        document.getElementById('email').value = email;
+    }
+
+    // Close modal when clicking outside the modal-content
+    window.onclick = function(event) {
+        const modal = document.getElementById('editModal');
+        if (event.target === modal) {
+            closeModal();
+        }
+    };
+</script>
 </body>
 </html>
