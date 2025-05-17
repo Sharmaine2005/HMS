@@ -10,7 +10,6 @@ if (!isset($_SESSION['role_id'])) {
 $loggedInNurseId = $_SESSION['role_id'];
 
 $showModal = false;
-$modalType = '';
 $newPatientID = 0;
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -19,15 +18,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $sex = $_POST['sex'];
     $address = $_POST['address'];
     $contact = $_POST['contact'];
-    $patientType = $_POST['patient_type'];
     $assignedNurseId = $_POST['assigned_nurse_id'];
+
+    $patientType = 'N/A'; // default type
 
     $stmt = $conn->prepare("INSERT INTO patients (Name, DateOfBirth, Sex, Address, Contact, PatientType, AssignedNurseID) VALUES (?, ?, ?, ?, ?, ?, ?)");
     $stmt->bind_param("ssssssi", $name, $dob, $sex, $address, $contact, $patientType, $assignedNurseId);
 
     if ($stmt->execute()) {
         $newPatientID = $stmt->insert_id;
-        $modalType = $patientType;
         $showModal = true;
     } else {
         echo "<script>alert('Error: " . $stmt->error . "');</script>";
@@ -105,8 +104,10 @@ include('../../includes/nurse_sidebar.php');
     .modal {
         position: fixed;
         z-index: 999;
-        left: 0; top: 0;
-        width: 100%; height: 100%;
+        left: 0;
+        top: 0;
+        width: 100%;
+        height: 100%;
         overflow: auto;
         background-color: rgba(0,0,0,0.5);
         display: none;
@@ -171,17 +172,10 @@ include('../../includes/nurse_sidebar.php');
         <label for="contact">Contact:</label>
         <input type="text" name="contact" id="contact" required>
 
-        <label for="patient_type">Patient Type:</label>
-        <select name="patient_type" id="patient_type" required>
-            <option value="">Select Type</option>
-            <option value="Inpatient">Inpatient</option>
-            <option value="Outpatient">Outpatient</option>
-        </select>
-
         <label for="assigned_nurse_id">Assigned Nurse:</label>
-        <select name="assigned_nurse_id" id="assigned_nurse_id" required>
-            <option value="<?= $loggedInNurseId ?>" selected>Nurse (You)</option>
-        </select>
+<input type="hidden" name="assigned_nurse_id" id="assigned_nurse_id" value="<?= $loggedInNurseId ?>">
+<input type="text" class="form-control" value="Nurse (You)" disabled style="background-color:rgb(255, 255, 255); border: 1px solid #ced4da; padding: 0.375rem 0.75rem; border-radius: 0.25rem;">
+
 
         <button type="submit" class="btn-primary">Add Patient</button>
     </form>
@@ -229,7 +223,7 @@ include('../../includes/nurse_sidebar.php');
     </table>
 </div>
 
-<!-- Follow-Up Modal -->
+<!-- Appointment Modal -->
 <div id="followUpModal" class="modal">
     <div class="modal-content">
         <span class="close" onclick="closeFollowUpModal()">&times;</span>
@@ -252,27 +246,22 @@ window.onclick = function(event) {
     }
 };
 
-</script>
-
-<script>
 window.addEventListener('message', function(event) {
     if (event.data === 'closeModal') {
-        closeFollowUpModal(); // closes the modal
-        window.location.href = ''; // reloads the Add Patient page
+        closeFollowUpModal();
+        window.location.href = ''; // Reload page
     }
 });
 </script>
 
 <?php if ($showModal): ?>
 <script>
-    document.addEventListener('DOMContentLoaded', function () {
-        const modal = document.getElementById('followUpModal');
-        const iframe = document.getElementById('followUpIframe');
-        const type = "<?= $modalType ?>";
-        const id = <?= $newPatientID ?>;
-        iframe.src = type === 'Inpatient' ? 'add_inpatient.php?patient_id=' + id : 'add_outpatient.php?patient_id=' + id;
-        modal.style.display = 'flex';
-        
-    });
+document.addEventListener('DOMContentLoaded', function () {
+    const modal = document.getElementById('followUpModal');
+    const iframe = document.getElementById('followUpIframe');
+    const id = <?= $newPatientID ?>;
+    iframe.src = 'add_appointment.php?patient_id=' + id;
+    modal.style.display = 'flex';
+});
 </script>
 <?php endif; ?>

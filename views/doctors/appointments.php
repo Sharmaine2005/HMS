@@ -38,6 +38,12 @@ if (isset($_SESSION['role']) && $_SESSION['role'] === 'doctor' && isset($_SESSIO
             $locQuery->fetch();
             $locQuery->close();
 
+            if (!$locationID) {
+                echo "DEBUG: LocationID is null. Cannot proceed.";
+                exit;
+            }
+
+
             // Insert into doctorschedule
             $insert = $conn->prepare("INSERT INTO doctorschedule 
                 (DoctorID, LocationID, ScheduleDate, StartTime, EndTime, Status, PatientName, PatientAge)

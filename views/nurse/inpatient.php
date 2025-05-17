@@ -38,7 +38,7 @@ if (isset($_POST['update_inpatient'])) {
     $patient_id = $patient['PatientID'];
 
     // Check if vitals exist for this PatientID
-    $check = $conn->prepare("SELECT PatientVitalID FROM patientvitals WHERE PatientID = ?");
+    $check = $conn->prepare("SELECT VitalID FROM patientvitals WHERE PatientID = ?");
     $check->bind_param("i", $patient_id);
     $check->execute();
     $result = $check->get_result();
@@ -83,6 +83,7 @@ include('../../includes/nurse_sidebar.php');
             <th>Pulse (bpm)</th>
             <th>Nurse Notes</th>
             <th>Location</th>
+            <th>Update</th>
             <th>Action</th>
         </tr>
         <?php while ($row = $inpatients->fetch_assoc()) { ?>
@@ -94,11 +95,10 @@ include('../../includes/nurse_sidebar.php');
                 <td><input type="text" name="blood_pressure" value="<?= htmlspecialchars($row['BloodPressure']) ?>" placeholder="e.g. 120/80" required></td>
                 <td><input type="text" name="pulse" value="<?= htmlspecialchars($row['Pulse']) ?>" placeholder="e.g. 72" required></td>
                 <td><textarea name="nurse_notes" placeholder="Additional notes..." required><?= htmlspecialchars($row['NurseNotes']) ?></textarea></td>
-
+                <td><textarea name="location_id" required><?= htmlspecialchars($row['LocationID']) ?></textarea></td>
                 <td>
-                    <textarea name="location_id" required><?= htmlspecialchars($row['LocationID']) ?></textarea>
                     <input type="hidden" name="inpatient_id" value="<?= $row['InpatientID'] ?>">
-                    <button type="submit" name="update_inpatient">Update</button>
+                    <button class="upd-btn"type="submit" name="update_inpatient">Update</button>
                 </td>
                 <td>
                     <button class="view-btn" type="button"
@@ -149,7 +149,6 @@ function closeModal() {
 </script>
 
 <style>
-/* Keep your existing styles here */
 body {
     font-family: Arial, sans-serif;
     background-color: #ffffff;
@@ -244,6 +243,18 @@ button.view-btn:hover {
     font-weight: 600;
     color: #444;
 }
+
+button.upd-btn {
+        background-color:rgb(27, 223, 145);
+        color: white;
+        border: none;
+        border-radius: 6px;
+        padding: 8px 16px;
+        cursor: pointer;
+    }
+    button.upd-btn:hover {
+        background-color:rgb(30, 211, 218);
+    }
 </style>
 
 </body>

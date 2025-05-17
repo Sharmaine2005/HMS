@@ -91,17 +91,19 @@ include('../../includes/nurse_sidebar.php');
                 </td>
             </form>
             <td>
-                <button class="view-btn"
-                    onclick="openModal(
-                        '<?php echo htmlspecialchars($row['PatientID']); ?>',
-                        '<?php echo htmlspecialchars($row['PatientName']); ?>',
-                        '<?php echo htmlspecialchars($row['Sex']); ?>',
-                        'Temperature: <?php echo htmlspecialchars($row['Temperature'] ?? 'N/A'); ?> °C\nBlood Pressure: <?php echo htmlspecialchars($row['BloodPressure'] ?? 'N/A'); ?> mmHg\nPulse: <?php echo $pulseDisplayed !== '' ? htmlspecialchars($pulseDisplayed) : 'N/A'; ?> bpm',
-                        'Outpatient',
-                        '<?php echo $_SESSION['username']; ?>'
-                    )">
-                    View Details
-                </button>
+                <button class="view-btn" type="button"
+            onclick="openModal(
+                '<?= htmlspecialchars($row['PatientID']) ?>',
+                '<?= htmlspecialchars($row['PatientName']) ?>',
+                '<?= htmlspecialchars($row['Sex']) ?>',
+                'Temp: <?= htmlspecialchars($row['Temperature'] ?? 'N/A') ?> °C | BP: <?= htmlspecialchars($row['BloodPressure'] ?? 'N/A') ?> | Pulse: <?= $pulseDisplayed !== '' ? htmlspecialchars($pulseDisplayed) : 'N/A' ?> bpm',
+                'Outpatient',
+                '<?= $_SESSION['username'] ?>'
+            )">
+            View Details
+            </button>
+
+
             </td>
         </tr>
         <?php
@@ -120,7 +122,7 @@ include('../../includes/nurse_sidebar.php');
         <div class="info-row"><strong>Patient ID:</strong> <span id="modalPatientID"></span></div>
         <div class="info-row"><strong>Name:</strong> <span id="modalName"></span></div>
         <div class="info-row"><strong>Gender:</strong> <span id="modalSex"></span></div>
-        <div class="info-row"><strong>Vitals:</strong> <pre id="modalVitals" style="white-space: pre-wrap;"></pre></div>
+        <div class="info-row"><strong>Vitals:</strong> <span id="modalVitals"><span></div>
         <div class="info-row"><strong>Type:</strong> <span id="modalType"></span></div>
         <div class="info-row"><strong>Assigned Nurse:</strong> <span id="modalNurse"></span></div>
     </div>

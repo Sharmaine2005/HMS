@@ -1,6 +1,6 @@
 <?php
 $host = "localhost";
-$dbname = "hmsdraft2"; // change this to your db name
+$dbname = "hmsdraft3"; // change this to your db name
 $username = "root";
 $password = "";
 
