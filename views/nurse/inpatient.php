@@ -6,16 +6,24 @@ if (!isset($_SESSION['username']) || $_SESSION['role'] != 'nurse') {
 }
 include('../../config/db.php');
 
-// Get inpatients with patient info and vitals joined on PatientID
-$inpatients = $conn->query("
+// Fetch nurse ID from session
+$nurse_id = $_SESSION['role_id'];
+
+// Get only inpatients assigned to this nurse
+$inpatients = $conn->prepare("
     SELECT i.InpatientID, i.PatientID, i.LocationID, 
-           p.Name AS PatientName, p.Sex,
+           p.Name AS PatientName, p.Sex, p.AssignedNurseID,
            v.Temperature, v.BloodPressure, v.Pulse, v.NurseNotes
     FROM inpatients i
     JOIN patients p ON i.PatientID = p.PatientID
     LEFT JOIN patientvitals v ON i.PatientID = v.PatientID
+    WHERE p.AssignedNurseID = ?
 ");
+$inpatients->bind_param("i", $nurse_id);
+$inpatients->execute();
+$inpatients = $inpatients->get_result();
 
+// Handle update
 if (isset($_POST['update_inpatient'])) {
     $inpatient_id = $_POST['inpatient_id'];
     $location = $_POST['location_id'];
@@ -24,20 +32,31 @@ if (isset($_POST['update_inpatient'])) {
     $pulse = $_POST['pulse'];
     $nurse_notes = $_POST['nurse_notes'];
 
-    // Update LocationID in inpatients table
+    // Step 1: Get PatientID from inpatient
+    $stmt = $conn->prepare("SELECT PatientID FROM inpatients WHERE InpatientID = ?");
+    $stmt->bind_param("i", $inpatient_id);
+    $stmt->execute();
+    $res = $stmt->get_result();
+    $inpatient = $res->fetch_assoc();
+    $patient_id = $inpatient['PatientID'];
+
+    // Step 2: Verify nurse authorization
+    $auth = $conn->prepare("SELECT AssignedNurseID FROM patients WHERE PatientID = ?");
+    $auth->bind_param("i", $patient_id);
+    $auth->execute();
+    $auth_result = $auth->get_result();
+    $row = $auth_result->fetch_assoc();
+
+    if (!$row || $row['AssignedNurseID'] != $nurse_id) {
+        die("Unauthorized update attempt.");
+    }
+
+    // Step 3: Update Location
     $stmt = $conn->prepare("UPDATE inpatients SET LocationID = ? WHERE InpatientID = ?");
     $stmt->bind_param("si", $location, $inpatient_id);
     $stmt->execute();
 
-    // Get PatientID for this inpatient
-    $stmt2 = $conn->prepare("SELECT PatientID FROM inpatients WHERE InpatientID = ?");
-    $stmt2->bind_param("i", $inpatient_id);
-    $stmt2->execute();
-    $res2 = $stmt2->get_result();
-    $patient = $res2->fetch_assoc();
-    $patient_id = $patient['PatientID'];
-
-    // Check if vitals exist for this PatientID
+    // Step 4: Check if vitals exist
     $check = $conn->prepare("SELECT VitalID FROM patientvitals WHERE PatientID = ?");
     $check->bind_param("i", $patient_id);
     $check->execute();
@@ -49,7 +68,7 @@ if (isset($_POST['update_inpatient'])) {
         $stmt3->bind_param("ssssi", $temperature, $blood_pressure, $pulse, $nurse_notes, $patient_id);
         $stmt3->execute();
     } else {
-        // Insert vitals
+        // Insert new vitals
         $stmt3 = $conn->prepare("INSERT INTO patientvitals (PatientID, Temperature, BloodPressure, Pulse, NurseNotes) VALUES (?, ?, ?, ?, ?)");
         $stmt3->bind_param("issss", $patient_id, $temperature, $blood_pressure, $pulse, $nurse_notes);
         $stmt3->execute();
@@ -86,7 +105,8 @@ include('../../includes/nurse_sidebar.php');
             <th>Update</th>
             <th>Action</th>
         </tr>
-        <?php while ($row = $inpatients->fetch_assoc()) { ?>
+        <?php if ($inpatients->num_rows > 0): ?>
+    <?php while ($row = $inpatients->fetch_assoc()): ?>
         <tr>
             <form method="POST" style="margin: 0;">
                 <td><?= $row['InpatientID'] ?></td>
@@ -98,7 +118,7 @@ include('../../includes/nurse_sidebar.php');
                 <td><textarea name="location_id" required><?= htmlspecialchars($row['LocationID']) ?></textarea></td>
                 <td>
                     <input type="hidden" name="inpatient_id" value="<?= $row['InpatientID'] ?>">
-                    <button class="upd-btn"type="submit" name="update_inpatient">Update</button>
+                    <button class="upd-btn" type="submit" name="update_inpatient">Update</button>
                 </td>
                 <td>
                     <button class="view-btn" type="button"
@@ -115,9 +135,14 @@ include('../../includes/nurse_sidebar.php');
                 </td>
             </form>
         </tr>
-        <?php } ?>
-    </table>
-</div>
+         <?php endwhile; ?>
+<?php else: ?>
+    <tr>
+        <td colspan="9" style="text-align: center; font-style: italic; color: #666;">
+            No inpatients assigned to you.
+        </td>
+    </tr>
+<?php endif; ?>
 
 <!-- Modal for viewing patient -->
 <div id="detailModal" class="modal">
@@ -149,6 +174,7 @@ function closeModal() {
 </script>
 
 <style>
+/* Same style definitions as your original */
 body {
     font-family: Arial, sans-serif;
     background-color: #ffffff;
@@ -243,18 +269,17 @@ button.view-btn:hover {
     font-weight: 600;
     color: #444;
 }
-
 button.upd-btn {
-        background-color:rgb(27, 223, 145);
-        color: white;
-        border: none;
-        border-radius: 6px;
-        padding: 8px 16px;
-        cursor: pointer;
-    }
-    button.upd-btn:hover {
-        background-color:rgb(30, 211, 218);
-    }
+    background-color: rgb(27, 223, 145);
+    color: white;
+    border: none;
+    border-radius: 6px;
+    padding: 8px 16px;
+    cursor: pointer;
+}
+button.upd-btn:hover {
+    background-color: rgb(30, 211, 218);
+}
 </style>
 
 </body>

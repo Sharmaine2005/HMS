@@ -89,5 +89,3 @@ $departments = $conn->query("SELECT * FROM department");
 
 </body>
 </html>
-department.php
-3 KB

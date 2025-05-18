@@ -7,10 +7,10 @@
             <a href="javascript:void(0);" class="dropdown-btn">Patient Management</a>
             <ul class="dropdown-content">
                 <li><a href="/HMS-main/views/nurse/add_patient.php">Add Patient</a></li>
-                <li><a href="/HMS-main/views/nurse/my_patients.php">My Patients</a></li>
                 <li><a href="/HMS-main/views/nurse/patient.php">View Patients</a></li>
                 <li style="text-align: center;"></li>
                 <li style="text-align: center; opacity: 0.1;">⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯</li>
+                <li><a href="/HMS-main/views/nurse/my_patients.php">My Patients</a></li>
                 <li><a href="/HMS-main/views/nurse/inpatient.php">Inpatients</a></li>
                 <li><a href="/HMS-main/views/nurse/outpatient.php">Outpatients</a></li>
             </ul>
@@ -124,5 +124,3 @@
 
 
 </style>
-nurse_sidebar.php
-4 KB

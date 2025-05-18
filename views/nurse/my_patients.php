@@ -192,7 +192,7 @@ if (isset($_POST['update_patient'])) {
 <body>
 
 <div class="content">
-    <h2>Patient Management</h2>
+    <h2>My Patients </h2>
 
     <table>
         <thead>
@@ -207,7 +207,7 @@ if (isset($_POST['update_patient'])) {
         </thead>
         <tbody>
             <?php if (count($patients) === 0): ?>
-                <tr><td colspan="6">No patients found.</td></tr>
+                <tr><td colspan="6" style='text-align: center; font-style: italic; color: #666;'>No patients found.</td></tr>
             <?php else: ?>
                 <?php foreach ($patients as $patient): ?>
                     <tr>

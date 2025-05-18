@@ -4,26 +4,28 @@ if (!isset($_SESSION['username']) || $_SESSION['role'] != 'nurse') {
     header("Location: ../../auth/login.php");
     exit();
 }
-include('../../config/db.php');
 
-$outpatients = $conn->query("
+include('../../config/db.php');
+$nurseID = $_SESSION['role_id']; // use assigned nurse ID
+
+$outpatients = $conn->prepare("
     SELECT o.OutpatientID, o.PatientID,
            p.Name AS PatientName, p.Sex,
            v.Temperature, v.BloodPressure, v.Pulse, v.NurseNotes
     FROM outpatients o
     JOIN patients p ON o.PatientID = p.PatientID
     LEFT JOIN patientvitals v ON o.PatientID = v.patientID
+    WHERE p.AssignedNurseID = ?
 ");
-
-if (!$outpatients) {
-    die("Query failed: " . $conn->error);
-}
+$outpatients->bind_param("i", $nurseID);
+$outpatients->execute();
+$result = $outpatients->get_result();
 
 if (isset($_POST['update_outpatient'])) {
     $patient_id = $_POST['patient_id'];
     $temperature = $_POST['temperature'];
     $bloodpressure = $_POST['bloodpressure'];
-    $pulse = $_POST['pulse'] / 4; // store raw pulse (divided back by 4)
+    $pulse = $_POST['pulse'] / 4;
     $nurse_notes = $_POST['nurse_notes'];
 
     $check = $conn->prepare("SELECT patientID FROM patientvitals WHERE patientID = ?");
@@ -55,10 +57,8 @@ include('../../includes/nurse_sidebar.php');
     <link rel="stylesheet" type="text/css" href="../../css/style.css">
 </head>
 <body>
-
 <div class="content">
     <h2>Outpatient Management</h2>
-
     <table border="1">
         <tr>
             <th>Outpatient ID</th>
@@ -72,8 +72,8 @@ include('../../includes/nurse_sidebar.php');
             <th>View</th>
         </tr>
         <?php
-        if ($outpatients->num_rows > 0) {
-            while ($row = $outpatients->fetch_assoc()) {
+        if ($result->num_rows > 0) {
+            while ($row = $result->fetch_assoc()) {
                 $pulseDisplayed = isset($row['Pulse']) ? $row['Pulse'] * 4 : '';
         ?>
         <tr>
@@ -92,28 +92,27 @@ include('../../includes/nurse_sidebar.php');
             </form>
             <td>
                 <button class="view-btn" type="button"
-            onclick="openModal(
-                '<?= htmlspecialchars($row['PatientID']) ?>',
-                '<?= htmlspecialchars($row['PatientName']) ?>',
-                '<?= htmlspecialchars($row['Sex']) ?>',
-                'Temp: <?= htmlspecialchars($row['Temperature'] ?? 'N/A') ?> °C | BP: <?= htmlspecialchars($row['BloodPressure'] ?? 'N/A') ?> | Pulse: <?= $pulseDisplayed !== '' ? htmlspecialchars($pulseDisplayed) : 'N/A' ?> bpm',
-                'Outpatient',
-                '<?= $_SESSION['username'] ?>'
-            )">
-            View Details
-            </button>
-
-
+                    onclick="openModal(
+                        '<?= htmlspecialchars($row['PatientID']) ?>',
+                        '<?= htmlspecialchars($row['PatientName']) ?>',
+                        '<?= htmlspecialchars($row['Sex']) ?>',
+                        'Temp: <?= htmlspecialchars($row['Temperature'] ?? 'N/A') ?> °C | BP: <?= htmlspecialchars($row['BloodPressure'] ?? 'N/A') ?> | Pulse: <?= $pulseDisplayed !== '' ? htmlspecialchars($pulseDisplayed) : 'N/A' ?> bpm',
+                        'Outpatient',
+                        '<?= $_SESSION['username'] ?>'
+                    )">
+                    View Details
+                </button>
             </td>
         </tr>
         <?php
             }
         } else {
-            echo "<tr><td colspan='9'>No outpatients found.</td></tr>";
+            echo "<tr><td colspan='9' style='text-align: center; font-style: italic; color: #666;'>No outpatients assigned to you.</td></tr>";
         }
         ?>
     </table>
 </div>
+
 
 <div id="detailModal" class="modal">
     <div class="modal-content">
